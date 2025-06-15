@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, QVBoxLa
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QColor, QFont
 from PyQt5.QtCore import QTimer, Qt
 from ultralytics import YOLO
-
+from code.color_utils import classify_team_color, determine_team_from_color
 
 def classify_team_color(cropped_img):
     """Improved color classification function"""
@@ -509,36 +509,46 @@ class SoccerVisionApp(QWidget):
             # Determine team for players and goalkeepers
             color = (255, 255, 255)  # Default color (white)
             
-            if class_name in ["player", "goalkeeper"]:
-                cropped = frame[y1:y2, x1:x2]
-                detected_color = classify_team_color(cropped)
-                
-                # Map detected color to team
+           # Replace the detection processing section in update_frame method with this:
+
+        if class_name in ["player", "goalkeeper"]:
+            # Extract and classify the jersey color
+            cropped = frame[y1:y2, x1:x2]
+            detected_color = classify_team_color(cropped)
+            
+            # Determine which team this player belongs to
+            team_assignment = determine_team_from_color(detected_color, self.team1_color, self.team2_color)
+            
+            if team_assignment == "team1":
+                team_name = self.team1_name
+                color = self.team1_color["rgb"][::-1]  # Convert RGB to BGR for OpenCV
+                text = f"{class_name.capitalize()} ({self.team1_name})"
+            elif team_assignment == "team2":
+                team_name = self.team2_name
+                color = self.team2_color["rgb"][::-1]  # Convert RGB to BGR for OpenCV
+                text = f"{class_name.capitalize()} ({self.team2_name})"
+            else:
+                # Fallback: use detected color
+                color_mapping = {
+                    "red": (0, 0, 255),      # BGR format
+                    "blue": (255, 0, 0),
+                    "green": (0, 255, 0),
+                    "yellow": (0, 255, 255),
+                    "purple": (128, 0, 128),
+                    "black": (0, 0, 0),
+                    "white": (255, 255, 255),
+                    "unknown": (128, 128, 128)
+                }
+                color = color_mapping.get(detected_color.lower(), (128, 128, 128))
+                text = f"{class_name.capitalize()} ({detected_color})"
                 team_name = "Unknown"
-                if detected_color.lower() == self.team1_color["name"].lower():
-                    team_name = self.team1_name
-                    color = self.team1_color["rgb"][::-1]  # Convert RGB to BGR for OpenCV
-                elif detected_color.lower() == self.team2_color["name"].lower():
-                    team_name = self.team2_name
-                    color = self.team2_color["rgb"][::-1]  # Convert RGB to BGR for OpenCV
-                else:
-                    # Try to match with known colors
-                    color_mapping = {
-                        "red": (0, 0, 255),
-                        "blue": (255, 0, 0),
-                        "green": (0, 255, 0),
-                        "yellow": (0, 255, 255),
-                        "purple": (128, 0, 128),
-                        "black": (0, 0, 0),
-                        "white": (255, 255, 255)
-                    }
-                    color = color_mapping.get(detected_color.lower(), (128, 128, 128))
-                
-                text = f"{class_name.capitalize()}"
-                if team_name != "Unknown":
-                    text += f" ({team_name})"
-                else:
-                    text += f" ({detected_color})"
+            
+            # Update counts
+            if class_name == "player":
+                if team_name in [self.team1_name, self.team2_name]:
+                    self.team_counts[team_name] += 1
+            elif class_name == "goalkeeper":
+                self.team_counts["Goalkeeper"] += 1
             
             elif class_name == "referee":
                 color = self.referee_color["rgb"][::-1]  # Convert RGB to BGR for OpenCV

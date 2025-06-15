@@ -83,6 +83,7 @@ While attempting to implement full Re-Identification (ReID), I explored multiple
 - 🖼️ Screenshot:
 
 ![Screenshot of App](screenshot.png)
+![Video Rendering with GPU](data/2.gif)
 
 ---
 ---
